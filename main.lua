@@ -1,5 +1,5 @@
 -- name: CMDLib
--- description: A command library that helps other mods make commands easier.\nAccessible with _G.CMDLib.
+-- description: A command library that helps other mods make commands easier.\nAccessible with _G.CMDLib.\n\nMade by kloodi
 
 _G.CMDLib = {
     ARG_TYPE_NUMBER = 0,
@@ -33,7 +33,7 @@ end
 -- Returns a command argument from a name, type and parameter
 --- @param name string
 --- @param type integer
---- @param param integer
+--- @param parameter integer
 local function argumentFrom(name, type, parameter)
     return {name = name, type = type, parameter = parameter}
 end
@@ -128,16 +128,95 @@ local function parseSelector(text)
     return result
 end
 
+--- @param arguments table
+--- @param argumentTypes table
+local function parseArguments(arguments, argumentTypes)
+    local result = {}
+
+    if #arguments > #argumentTypes then
+        djui_chat_message_create(_G.CMDLib.MSG_ERROR_COLOR .. "Error: Too many arguments.")
+        return nil
+    end
+
+    --- @type table
+    for idx, arg in ipairs(argumentTypes) do
+        if #arguments < idx then
+            if arg.parameter == _G.CMDLib.ARG_PARAM_REQUIRED then
+                djui_chat_message_create(_G.CMDLib.MSG_ERROR_COLOR .. "Error: Did not include required argument \"" .. arg.name .. "\".")
+                return nil
+            elseif arg.parameter == _G.CMDLib.ARG_PARAM_OPTIONAL then
+                goto continue
+            end
+        end
+
+        local convertedArg = arguments[idx]
+
+        if arg.type == _G.CMDLib.ARG_TYPE_NUMBER then
+            convertedArg = tonumber(convertedArg)
+            if convertedArg == nil then
+                djui_chat_message_create(_G.CMDLib.MSG_ERROR_COLOR .. "Error: Invalid number for \"" .. arg.name .. "\".")
+                return nil
+            end
+        elseif arg.type == _G.CMDLib.ARG_TYPE_PLAYER_SINGLE then
+            convertedArg = parseSelector(convertedArg)
+            if convertedArg == nil then
+                djui_chat_message_create(_G.CMDLib.MSG_ERROR_COLOR .. "Error: Invalid player for \"" .. arg.name .. "\".")
+                return nil
+            end
+            if #convertedArg > 1 then
+                djui_chat_message_create(_G.CMDLib.MSG_ERROR_COLOR .. "Error: \"" .. arg.name .. "\" only accepts 1 player.")
+                return nil
+            end
+        elseif arg.type == _G.CMDLib.ARG_TYPE_PLAYER_MULTIPLE then
+            convertedArg = parseSelector(convertedArg)
+            if convertedArg == nil then
+                djui_chat_message_create(_G.CMDLib.MSG_ERROR_COLOR .. "Error: Invalid player for \"" .. arg.name .. "\".")
+                return nil
+            end
+        end
+
+        result[arg.name] = convertedArg
+
+        ::continue::
+    end
+
+    return result
+end
+
 local commands = {}
+
+--- @param dict table
+local function dictLength(dict)
+    local result = 0
+    for _, _ in pairs(dict) do
+        result = result + 1
+    end
+    return result
+end
 
 -- Makes a command with CMDLib's internal command system
 --- @param name string
---- @param description string
---- @param arguments table
---- @param callback function
-local function makeCommand(name, description, arguments, callback)
+--- @param data table
+local function makeCommand(name, data)
+    name = name:lower()
+
+    local commandData = {
+        description = "",
+        longDescription = nil,
+        arguments = {},
+        callback = function(_) end
+    }
+
+    for k, v in pairs(data) do
+        commandData[k] = v
+    end
+
+    if commandData.longDescription == nil then
+        commandData.longDescription = commandData.description
+    end
+
     local argDescription = ""
-    for _, arg in ipairs(arguments) do
+    for _, arg in ipairs(commandData.arguments) do
         argDescription = argDescription .. "[" .. arg.name
         if arg.parameter == _G.CMDLib.ARG_PARAM_OPTIONAL then argDescription = argDescription .. "?" end
 
@@ -146,121 +225,67 @@ local function makeCommand(name, description, arguments, callback)
 
     commands[name] = {
         name = name,
-        description = description,
+        order = dictLength(commands),
+        description = commandData.description,
+        longDescription = commandData.longDescription,
         argDescription = argDescription,
-        arguments = arguments,
-        callback = callback
+        arguments = commandData.arguments,
+        callback = commandData.callback,
+        realCallback = function(msg)
+            local args = splitString(msg, " ")
+            local convertedArgs = parseArguments(args, commands[name].arguments)
+            if convertedArgs == nil then return end
+    
+            local result = commands[name].callback(convertedArgs)
+            if result ~= nil and result.message:len() > 0 then
+                if result.type == _G.CMDLib.RES_TYPE_ERROR then
+                    djui_chat_message_create(_G.CMDLib.MSG_ERROR_COLOR .. "Error: " .. result.message)
+                end
+                if result.type == _G.CMDLib.RES_TYPE_WARNING then
+                    djui_chat_message_create(_G.CMDLib.MSG_WARNING_COLOR .. "Warning: " .. result.message)
+                end
+                if result.type == _G.CMDLib.RES_TYPE_SUCCESS then
+                    djui_chat_message_create(_G.CMDLib.MSG_SUCCESS_COLOR .. "Success: " .. result.message)
+                end
+            end
+        end
     }
-
-    hook_chat_command(name, argDescription .. "- " .. description, function(msg)
-        if commands[name] == nil then return false end
-
-        local args = splitString(msg, " ")
-        local convertedArgs = {}
-        
-        if #args > #arguments then
-            djui_chat_message_create(_G.CMDLib.MSG_ERROR_COLOR .. "Error: Too many arguments.")
-            return true
-        end
-
-        --- @type table
-        for idx, arg in ipairs(arguments) do
-            if #args < idx then
-                if arg.parameter == _G.CMDLib.ARG_PARAM_REQUIRED then
-                    djui_chat_message_create(_G.CMDLib.MSG_ERROR_COLOR .. "Error: Did not include required argument \"" .. arg.name .. "\".")
-                    return true
-                elseif arg.parameter == _G.CMDLib.ARG_PARAM_OPTIONAL then
-                    goto continue
-                end
-            end
-
-            local convertedArg = args[idx]
-
-            if arg.type == _G.CMDLib.ARG_TYPE_NUMBER then
-                convertedArg = tonumber(convertedArg)
-                if convertedArg == nil then
-                    djui_chat_message_create(_G.CMDLib.MSG_ERROR_COLOR .. "Error: Invalid number for \"" .. arg.name .. "\".")
-                    return true
-                end
-            elseif arg.type == _G.CMDLib.ARG_TYPE_PLAYER_SINGLE then
-                convertedArg = parseSelector(convertedArg)
-                if convertedArg == nil then
-                    djui_chat_message_create(_G.CMDLib.MSG_ERROR_COLOR .. "Error: Invalid player for \"" .. arg.name .. "\".")
-                    return true
-                end
-                if #convertedArg > 1 then
-                    djui_chat_message_create(_G.CMDLib.MSG_ERROR_COLOR .. "Error: \"" .. arg.name .. "\" only accepts 1 player.")
-                    return true
-                end
-            elseif arg.type == _G.CMDLib.ARG_TYPE_PLAYER_MULTIPLE then
-                convertedArg = parseSelector(convertedArg)
-                if convertedArg == nil then
-                    djui_chat_message_create(_G.CMDLib.MSG_ERROR_COLOR .. "Error: Invalid player for \"" .. arg.name .. "\".")
-                    return true
-                end
-            end
-
-            convertedArgs[arg.name] = convertedArg
-
-            ::continue::
-        end
-
-        local result = callback(convertedArgs)
-        if result ~= nil and result.message:len() > 0 then
-            if result.type == _G.CMDLib.RES_TYPE_ERROR then
-                djui_chat_message_create(_G.CMDLib.MSG_ERROR_COLOR .. "Error: " .. result.message)
-            end
-            if result.type == _G.CMDLib.RES_TYPE_WARNING then
-                djui_chat_message_create(_G.CMDLib.MSG_WARNING_COLOR .. "Warning: " .. result.message)
-            end
-            if result.type == _G.CMDLib.RES_TYPE_SUCCESS then
-                djui_chat_message_create(_G.CMDLib.MSG_SUCCESS_COLOR .. "Success: " .. result.message)
-            end
-        end
-
-        return true
-    end)
 end
 
 -- Removes a command that is made with CMDLib's internal command system
 --- @param name string
 local function removeCommand(name)
     if commands[name] ~= nil then
-        update_chat_command_description(name, " ")
+        if findTable({"help", "helpCmd"}, name) ~= nil then return end
         commands[name] = nil
     end
 end
 
--- Gets info about a command that is made with CMDLib's internal command system
+-- Gets info about a command that is made with CMDLib's internal command system.<br>
+-- Editing this won't update the command, For that see `editCommand`.
 --- @param name string
 local function getCommandInfo(name)
     if commands[name] ~= nil then
-        return commands[name]
+        return {
+            name = commands[name].name,
+            description = commands[name].description,
+            longDescription = commands[name].longDescription,
+            arguments = commands[name].arguments,
+            callback = commands[name].callback
+        }
     else
         return nil
     end
 end
 
 -- Edits a command that is made with CMDLib's internal command system
--- NOTE: Editing the callback and not editing the name will make it so the new callback
--- will never be called.
 --- @param name string
 --- @param newName string
---- @param newDescription string
---- @param newCallback function
-local function editCommand(name, newName, newDescription, newArguments, newCallback)
+--- @param newData table
+local function editCommand(name, newName, newData)
     if commands[name] ~= nil then
-        commands[name].name = newName
-        commands[name].description = newDescription
-        commands[name].arguments = newArguments
-        commands[name].callback = newCallback
-
-        if newName ~= name or newCallback ~= commands[name].callback then
-            removeCommand(name)
-            makeCommand(newName, newDescription, newArguments, newCallback)
-        else
-            update_chat_command_description(name, newDescription)
-        end
+        removeCommand(name)
+        makeCommand(newName, newData)
     end
 end
 
@@ -271,37 +296,90 @@ _G.CMDLib.editCommand = editCommand
 _G.CMDLib.getCommandInfo = getCommandInfo
 _G.CMDLib.removeCommand = removeCommand
 
-makeCommand("yes", "does yes", {}, function(msg)
-    djui_popup_create("yes", 1)
-end)
-editCommand("yes", "okay", "does okay", {}, function(msg)
-    djui_popup_create("okay", 1)
-end)
-
-makeCommand("help", "CMDLib Help Command", {argumentFrom("page", _G.CMDLib.ARG_TYPE_NUMBER, _G.CMDLib.ARG_PARAM_OPTIONAL)}, function(args)
-    if args.page == nil then
-        args.page = 1
-    end
-
-    args.page = args.page - 1
-
-    local commandTable = {}
-    for _, command in pairs(commands) do
-        table.insert(commandTable, command)
-    end
-
-    local perPage = 5
-    local maxPage = math.ceil(#commandTable / perPage)
+makeCommand("help", {
+    description = "Show a list of commands",
+    longDescription = "Show a list of commands, Use [page?] to check which page.",
+    arguments = {argumentFrom("page", _G.CMDLib.ARG_TYPE_NUMBER, _G.CMDLib.ARG_PARAM_OPTIONAL)},
+    callback = function(args)
+        if args.page == nil then
+            args.page = 1
+        end
     
-    args.page = math.min(math.max(args.page, 0), maxPage - 1)
+        args.page = args.page - 1
+    
+        local commandTable = {}
+        for _, command in pairs(commands) do
+            table.insert(commandTable, command)
+        end
 
-    djui_chat_message_create("List of commands (Page " .. args.page + 1 .. "/" .. maxPage .. "):")
-    for idx = args.page * perPage, args.page * perPage + (perPage - 1), 1  do
-        idx = idx + 1
-        if idx > #commandTable then break end
+        table.sort(commandTable, function(a, b) return a.order < b.order end)
+    
+        local perPage = 5
+        local maxPage = math.ceil(#commandTable / perPage)
+        
+        args.page = math.min(math.max(args.page, 0), maxPage - 1)
+    
+        local list = "List of commands (Page " .. args.page + 1 .. "/" .. maxPage .. "):"
+        for idx = args.page * perPage, args.page * perPage + (perPage - 1), 1  do
+            idx = idx + 1
+            if idx > #commandTable then break end
+    
+            local command = commandTable[idx]
+    
+            local join = ""
+            if command.description:len() > 0 then
+                join = "- " .. command.description
+            end
+            list = list .. "\n!" .. command.name .. " " .. command.argDescription .. join
+        end
 
-        local command = commandTable[idx]
-
-        djui_chat_message_create("/" .. command.name .. " " .. command.argDescription .. "- " .. command.description)
+        djui_chat_message_create(list)
     end
-end)
+})
+makeCommand("helpCmd", {
+    description = "Help about a specific command",
+    longDescription = "Help about a specific command, Also shows an extended description (If there is one).",
+    arguments = {argumentFrom("command", _G.CMDLib.ARG_TYPE_STRING, _G.CMDLib.ARG_PARAM_OPTIONAL)},
+    callback = function(args)
+        if args.command == nil then
+            commands.help.callback({page = 1})
+            return
+        end
+        args.command = args.command:lower()
+        
+        if commands[args.command] == nil then
+            return resultFrom(_G.CMDLib.RES_TYPE_ERROR, "Invalid command \"" .. args.command .. "\".")
+        end
+    
+        local command = commands[args.command]
+    
+        djui_chat_message_create("Help (\"" .. command.name .. "\")\n!" .. command.name .. " " .. command.argDescription .. "\n" .. command.longDescription)
+    end
+})
+
+local function onChat(sender, message)
+    if sender.playerIndex > 0 then
+        if message:sub(1, 1) == "!" then
+            return false
+        end
+    end
+
+    if message:sub(1, 1) == "!" then
+        for name, command in pairs(commands) do
+            if splitString(message, " ")[1] == "!" .. name then
+                local messageInput = ""
+                if message:len() > name:len() + 2 then
+                    messageInput = message:sub(name:len() + 2, -1)
+                end
+
+                command.realCallback(messageInput)
+                return false
+            end
+        end
+        
+        djui_chat_message_create(_G.CMDLib.MSG_ERROR_COLOR .. "Error: Invalid command. (Use !help for a list of commands.)")
+        return false
+    end
+end
+
+hook_event(HOOK_ON_CHAT_MESSAGE, onChat)
