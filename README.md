@@ -1,11 +1,11 @@
 # CMDLib
 
-A command library that helps other mods make commands easier.
+A command library for sm64coopd that helps other mods make commands easier.<br>
 The documentation is very WIP and will definitely change in the future.
 
 ## Getting Started
 
-Download the `cmd-lib.lua` and then put it in your mods folder.
+Download the `cmd-lib.lua` and then put it in your mods folder.<br>
 Now any other mod can access it with _G.CMDLib.
 
 ## Constants
