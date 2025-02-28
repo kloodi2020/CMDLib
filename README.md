@@ -5,32 +5,47 @@ The documentation is very WIP and will definitely change in the future.
 
 ## Getting Started
 
-Download the `cmd-lib.lua` and then put it in your mods folder.<br>
+Download the `cmdlib.lua` and then put it in your mods folder.<br>
 Now any other mod can access it with _G.CMDLib.
 
 ## Constants
 
-ARG_TYPE_NUMBER - Represents an argument that takes in a number.<br>
-ARG_TYPE_STRING - Represents an argument that takes in a string.<br>
-ARG_TYPE_PLAYER_SINGLE - Represents an argument that takes in one player.<br>
-ARG_TYPE_PLAYER_MULTIPLE - Represents an argument that takes in any amount of players.<br>
+ARG_TYPE_NUMBER - An argument that takes in a number.<br>
+ARG_TYPE_STRING - An argument that takes in a string.<br>
+ARG_TYPE_PLAYER_SINGLE - An argument that takes in one player.<br>
+ARG_TYPE_PLAYER_MULTIPLE - An argument that takes in any amount of players.<br>
 
-ARG_PARAM_REQUIRED - Represents an argument that is required.<br>
-ARG_PARAM_OPTIONAL - Represents an argument that is optional.<br>
+ARG_PARAM_REQUIRED - A parameter that makes the argument required.<br>
+ARG_PARAM_OPTIONAL - A parameter that makes the argument optional.<br>
 
-RES_TYPE_ERROR - Represents an error while processing the command.<br>
-RES_TYPE_WARNING - Represents a warning while processing the command.<br>
-RES_TYPE_SUCCESS - Represents a success while processing the command.<br>
+RES_TYPE_ERROR - An error result type.<br>
+RES_TYPE_WARNING - A warning result type.<br>
+RES_TYPE_SUCCESS - A success result type.<br>
 
-MSG_ERROR_COLOR - Represents the color of error messages.<br>
-MSG_ERROR_COLOR - Represents the color of warning messages.<br>
-MSG_SUCCESS_COLOR - Represents the color of success messages.
+MSG_ERROR_COLOR - The color of error messages.<br>
+MSG_ERROR_COLOR - The color of warning messages.<br>
+MSG_SUCCESS_COLOR - The color of success messages.
 
 ## Functions
 
-argumentFrom - Returns an argument from a name, type, and parameter.<br>
-resultFrom - Returns a command result from a type and message.<br>
-makeCommand - Makes a command with a name, description, arguments and callback.<br>
-editCommand - Edits a command's name, description, arguments or callback.<br>
-removeCommand - Removes a command.<br>
-getCommandInfo - Returns info about a command.
+### argumentFrom(name, type, param)
+Returns an argument from a name, type, and parameter.<br>
+
+### resultFrom(type, message)
+Returns a command result from a type and message.<br>
+
+### makeCommand(name, data)
+Makes a command with a name and a data table that can contain:<br>
+description<br>
+longDescription<br>
+arguments<br>
+callback<br>
+
+### editCommand(name, newData)
+Edits a command's data.<br>
+
+### removeCommand(name)
+Removes a command.<br>
+
+### getCommandData(name)
+Returns a command's data.
