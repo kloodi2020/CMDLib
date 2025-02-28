@@ -266,7 +266,7 @@ end
 -- Gets info about a command that is made with CMDLib's internal command system.<br>
 -- Editing this won't update the command, For that see `editCommand`.
 --- @param name string
-local function getCommandInfo(name)
+local function getCommandData(name)
     if commands[name] ~= nil then
         return {
             name = commands[name].name,
