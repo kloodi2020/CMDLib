@@ -28,7 +28,7 @@ MSG_SUCCESS_COLOR - The color of success messages.
 
 ## Functions
 
-### argumentFrom(name, type, param)
+### argumentFrom(name, type, parameter)
 Returns an argument from a name, type, and parameter.<br>
 
 ### resultFrom(type, message)
@@ -41,8 +41,8 @@ longDescription<br>
 arguments<br>
 callback<br>
 
-### editCommand(name, newData)
-Edits a command's data.<br>
+### editCommand(name, newName, newData)
+Edits a command's name and data.<br>
 
 ### removeCommand(name)
 Removes a command.<br>
